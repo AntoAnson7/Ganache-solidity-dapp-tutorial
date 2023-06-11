@@ -9,6 +9,36 @@ function App() {
   const [uid, setuid] = useState("");
   const [eid, seteid] = useState("");
 
+  function stoB32(inputString) {
+    const encoder = new TextEncoder();
+    const data = encoder.encode(inputString);
+    const buffer = new Uint8Array(32);
+
+    if (data.length >= buffer.length) {
+      buffer.set(data.slice(0, buffer.length));
+    } else {
+      buffer.set(data);
+    }
+
+    return (
+      "0x" +
+      Array.prototype.map
+        .call(buffer, (x) => ("00" + x.toString(16)).slice(-2))
+        .join("")
+    );
+  }
+
+  function tc(bytes32) {
+    let str = "";
+    for (let i = 0; i < bytes32.length; i++) {
+      const charCode = bytes32[i];
+      if (charCode !== 0) {
+        str += String.fromCharCode(charCode);
+      }
+    }
+    return str;
+  }
+
   const [tid, settid] = useState("");
 
   useEffect(() => {
@@ -33,6 +63,8 @@ function App() {
 
   const createTicket = async (_eid, _uid) => {
     const { contract } = state;
+    _eid = stoB32(_eid);
+    _uid = stoB32(_uid);
     await contract.methods.createTicket(_eid, _uid).send({
       from: "0xB5c668A63b1C7f41A88530c562E23B54717bCfa8",
       gas: 500000,
@@ -42,8 +74,10 @@ function App() {
 
   const getTickets = async (_uid) => {
     const { contract } = state;
+    _uid = stoB32(_uid);
     const res = await contract.methods.getTicketsByUser(_uid).call();
-    console.log(res);
+    // console.log(res.length != 0 ? res[0].ticketId : "No tickets found");
+    res.map((r) => console.log(getTicketData(r.ticketId)));
   };
 
   const getTicketData = async (_tid) => {

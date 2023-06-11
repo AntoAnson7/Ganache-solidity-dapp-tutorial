@@ -3,31 +3,30 @@ pragma experimental ABIEncoderV2;
 
 contract Ticket {
     struct Tickets {
-        uint256 eventId;
-        uint256 userId;
+        bytes32 eventId;
+        bytes32 userId;
+        bytes32 ticketId;
         bool isValid;
     }
 
-    mapping(uint256 => Tickets) public ticketsByTicketId;
-    mapping(uint256 => uint256[]) public ticketsByUserId;
+    mapping(bytes32 => Tickets) public ticketsByTicketId;
+    mapping(bytes32 => bytes32[]) public ticketsByUserId;
 
-    event TicketCreated(uint256 indexed ticketId, uint256 indexed eventId, uint256 indexed userId);
-    event TicketInvalidated(uint256 indexed ticketId, uint256 indexed eventId, uint256 indexed userId);
+    event TicketCreated(bytes32 indexed ticketId, bytes32 indexed eventId, bytes32 indexed userId);
+    event TicketInvalidated(bytes32 indexed ticketId, bytes32 indexed eventId, bytes32 indexed userId);
 
     uint256 private lastTicketId;
 
-    function createTicket(uint256 eventId, uint256 userId) external returns (uint256) {
-        require(eventId > 0, "Invalid event ID");
-        require(userId > 0, "Invalid user ID");
+    function createTicket(bytes32 eventId, bytes32 userId) external returns (bytes32) {
+        require(eventId != bytes32(0), "Invalid event ID");
+        require(userId != bytes32(0), "Invalid user ID");
 
-        lastTicketId++;
-        require(lastTicketId <= 999999, "Maximum ticket ID limit reached");
-
-        uint256 ticketId = generateTicketId();
+        bytes32 ticketId = generateRandomTicketId();
 
         Tickets memory newTicket = Tickets({
             eventId: eventId,
             userId: userId,
+            ticketId: ticketId,
             isValid: true
         });
 
@@ -39,18 +38,32 @@ contract Ticket {
         return ticketId;
     }
 
-    function getTicketsByUser(uint256 userId) external view returns (uint256[] memory) {
-        require(userId > 0, "Invalid user ID");
-
-        return ticketsByUserId[userId];
+    function generateRandomTicketId() internal view returns (bytes32) {
+        uint256 randomValue = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty, msg.sender)));
+        bytes32 ticketId = bytes32(randomValue % 100000000); // Ensure 8-digit value
+        return ticketId;
     }
 
-    function invalidateTicket(uint256 ticketId) external {
-        require(ticketId > 0, "Invalid ticket ID");
+    function getTicketsByUser(bytes32 userId) external view returns (Tickets[] memory) {
+        require(userId != bytes32(0), "Invalid user ID");
+
+        bytes32[] memory ticketIds = ticketsByUserId[userId];
+        Tickets[] memory userTickets = new Tickets[](ticketIds.length);
+
+        for (uint256 i = 0; i < ticketIds.length; i++) {
+            bytes32 ticketId = ticketIds[i];
+            userTickets[i] = ticketsByTicketId[ticketId];
+        }
+
+        return userTickets;
+    }
+
+    function invalidateTicket(bytes32 ticketId) external {
+        require(ticketId != bytes32(0), "Invalid ticket ID");
 
         Tickets storage ticket = ticketsByTicketId[ticketId];
 
-        require(ticket.userId != 0, "Ticket does not exist");
+        require(ticket.eventId != bytes32(0), "Ticket does not exist");
         require(ticket.isValid, "Ticket is already invalid");
 
         ticket.isValid = false;
@@ -58,15 +71,9 @@ contract Ticket {
         emit TicketInvalidated(ticketId, ticket.eventId, ticket.userId);
     }
 
-    function generateTicketId() private view returns (uint256) {
-        uint256 randomNumber = uint256(keccak256(abi.encodePacked(block.timestamp, block.difficulty, msg.sender)));
-        return randomNumber % 1000000;
+    function getTicketDetails(bytes32 ticketId) external view returns (Tickets memory) {
+        require(ticketId != bytes32(0), "Invalid ticket ID");
+
+        return ticketsByTicketId[ticketId];
     }
-
-    function getTicketDetails(uint256 ticketId) external view returns (Tickets memory) {
-    require(ticketId > 0, "Invalid ticket ID");
-
-    return ticketsByTicketId[ticketId];
-}
-
 }
