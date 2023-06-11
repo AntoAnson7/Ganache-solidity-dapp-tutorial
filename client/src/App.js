@@ -1,12 +1,15 @@
 import { useState, useEffect } from "react";
 import Web3 from "web3";
 import Test from "./contracts/Test.json";
+import Ticket from "./contracts/Ticket.json";
 /* global BigInt */
 
 function App() {
   const [state, setState] = useState({ web3: null, contract: null });
-  const [a, setA] = useState(0);
-  const [temp, setTemp] = useState("");
+  const [uid, setuid] = useState("");
+  const [eid, seteid] = useState("");
+
+  const [tid, settid] = useState("");
 
   useEffect(() => {
     const provider = new Web3.providers.HttpProvider("HTTP://127.0.0.1:7545");
@@ -18,44 +21,68 @@ function App() {
       //! 1) ABI
       //! 2) Contract Address
       const networkid = await web3.eth.net.getId();
-      const deployed = await Test.networks[networkid];
+      const deployed = await Ticket.networks[networkid];
 
       // INSTANCE OF CONTRACT TO MAKE INTERACTION
-      const contract = new web3.eth.Contract(Test.abi, deployed.address);
+      const contract = new web3.eth.Contract(Ticket.abi, deployed.address);
 
       setState({ web3: web3, contract: contract });
     };
     provider && template();
   }, []);
 
-  useEffect(() => {
+  const createTicket = async (_eid, _uid) => {
     const { contract } = state;
-    const readData = async () => {
-      const res = await contract.methods.getA().call();
-      setA(`${res}`);
-    };
-    contract && readData();
-  }, [state]);
-
-  const updateData = async (val) => {
-    const { contract } = state;
-    await contract.methods
-      .setA(val)
-      .send({ from: "0xB5c668A63b1C7f41A88530c562E23B54717bCfa8" });
+    await contract.methods.createTicket(_eid, _uid).send({
+      from: "0xB5c668A63b1C7f41A88530c562E23B54717bCfa8",
+      gas: 500000,
+    });
     window.location.reload();
+  };
+
+  const getTickets = async (_uid) => {
+    const { contract } = state;
+    const res = await contract.methods.getTicketsByUser(_uid).call();
+    console.log(res);
+  };
+
+  const getTicketData = async (_tid) => {
+    const { contract } = state;
+    const res = await contract.methods.getTicketDetails(_tid).call();
+    console.log(res);
   };
 
   return (
     <div className="App">
-      <h1>Value : {a}</h1>
+      <input
+        type="text"
+        placeholder="User id"
+        onChange={(e) => setuid(e.target.value)}
+      />
+      <input
+        type="text"
+        placeholder="Event id"
+        onChange={(e) => seteid(e.target.value)}
+      />
+
+      <button onClick={() => createTicket(eid, uid)}>Create ticket</button>
+
+      <h1>Tickets</h1>
 
       <input
         type="text"
-        placeholder="Enter value"
-        onChange={(e) => setTemp(e.target.value)}
+        placeholder="User id"
+        onChange={(e) => setuid(e.target.value)}
       />
+      <button onClick={() => getTickets(uid)}>Get tickets</button>
 
-      <button onClick={() => updateData(temp)}>Update</button>
+      <h1>Get Ticket details</h1>
+      <input
+        type="text"
+        placeholder="ticket id"
+        onChange={(e) => settid(e.target.value)}
+      />
+      <button onClick={() => getTicketData(tid)}>Get Details</button>
     </div>
   );
 }
